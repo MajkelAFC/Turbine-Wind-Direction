@@ -1,0 +1,12 @@
+# Python virtual environments
+.venv/
+venv/
+ENV/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Databases & local data
+*.csv
