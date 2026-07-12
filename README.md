@@ -1,4 +1,4 @@
-# Wind Turbine Data Analytics Pipeline
+
 # Turbine Wind Direction Analytics Pipeline
 
 A production-ready data pipeline engineered in Python using **Domain-Driven Design (DDD)** principles and the **Medallion Architecture** (Bronze, Silver, and Gold layers). The system ingests, cleans, and processes high-frequency wind turbine data to compute the mathematically precise average wind direction using circular/vector analytics.
