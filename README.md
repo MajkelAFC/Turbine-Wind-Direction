@@ -30,6 +30,47 @@ $$y_{mean} = \frac{1}{n} \sum_{i=1}^{n} \sin(\theta_i)$$
 
 $$\theta_{mean} = \text{atan2}(y_{mean}, x_{mean})$$
 
+## 🐳 Orchestration & Infrastructure
+
+The entire stack runs in Docker containers, orchestrated via Docker Compose:
+
+- **PostgreSQL**: stores Bronze, Silver, and Gold layer data
+- **Apache Airflow**: schedules and orchestrates the ETL pipeline (`bronze → silver → gold`), running daily via a DAG defined in `dags/wind_dag.py`
+- **Apache Superset**: connects to the Gold/Silver layers to visualize wind direction distribution
+
+This means anyone can spin up the full pipeline — database, scheduler, and dashboards — with a single command, without installing anything locally.
+
+## ▶️ How to Run
+
+```bash
+docker compose up -d --build
+```
+
+This starts:
+- PostgreSQL on port `5433`
+- Airflow UI on `http://localhost:8080`
+- Superset UI on `http://localhost:8088`
+
+On first run, initialize Airflow and Superset users:
+
+```bash
+docker exec -it wind_airflow airflow users list   # check default admin (standalone mode)
+
+docker exec -it wind_superset superset db upgrade
+docker exec -it wind_superset superset fab create-admin --username admin --firstname Admin --lastname User --email admin@admin.com --password admin
+docker exec -it wind_superset superset init
+```
+
+Then trigger the DAG from the Airflow UI (`wind_analytics_pipeline`) to run the full Bronze → Silver → Gold pipeline.
+
+## 📊 Dashboard
+
+Wind direction distribution, visualized in Superset from the Silver layer (352 individual readings):
+
+![Wind Direction Dashboard](docs/dashboard.png)
+
+The near-normal distribution centered around 179-180° confirms the circular mean calculation in the Gold layer.
+
 ---
 
 ---
@@ -42,7 +83,7 @@ To maximize the efficiency and energy yield of the wind farm infrastructure, eng
 
 ### 1. Optimal Baseline Turbine Orientation (Yaw System Optimization)
 *   **Target Heading**: **$179.99^\circ$** (South).
-*   **Impact**: While modern wind turbines feature active yaw systems to automatically rotate the nacelle into the wind, setting the default baseline orientation to **$179.99^\circ$** minimizes the aggregate mechanical rotation required throughout the year. This directly reduces component wear on heavy łożyska (yaw bearings) and saves auxiliary energy consumption.
+*   **Impact**: While modern wind turbines feature active yaw systems to automatically rotate the nacelle into the wind, setting the default baseline orientation to **$179.99^\circ$** minimizes the aggregate mechanical rotation required throughout the year. This directly reduces component wear on yaw bearings and saves auxiliary energy consumption.
 
 ### 2. Wake Mitigation & Spatial Layout Design
 *   **Array Layout Axis**: **$89.99^\circ \longleftrightarrow 269.99^\circ$** (East-West alignment).
@@ -50,20 +91,25 @@ To maximize the efficiency and energy yield of the wind farm infrastructure, eng
 
 ## 🛠️ Project Structure
 
-```text
 wind_analytics/
+├── dags/
+│   └── wind_dag.py            # Airflow DAG orchestrating bronze/silver/gold
+├── docs/
+│   └── dashboard.png          # Superset dashboard screenshot
 ├── src/
 │   ├── domain/
-│   │   ├── analytics.py       # Domain Service (Circular/Vector math logic)
-│   │   ├── repository.py      # Abstract Domain Repository interfaces
-│   │   └── wind_turbine.py    # Domain Entities and Value Objects
+│   │   ├── analytics.py
+│   │   ├── repository.py
+│   │   └── wind_turbine.py
 │   ├── infrastructure/
-│   │   ├── csv_loader.py      # Ingests source CSV metrics
-│   │   ├── database.py        # Database engine setup & raw connection management
-│   │   ├── repository.py      # PostgreSQL Psycopg2 concrete repository implementation
-│   │   ├── silver_loader.py   # Cleansing logic execution
-│   │   └── gold_loader.py     # High-level analytical calculation supervisor
-│   └── main.py                # Main orchestration entry point
-├── .gitignore                 # Safe workspace filtering setup
-└── README.md                  # System documentation
+│   │   ├── csv_loader.py
+│   │   ├── database.py
+│   │   ├── repository.py
+│   │   ├── silver_loader.py
+│   │   └── gold_loader.py
+│   └── main.py
+├── docker-compose.yml         # Full stack: Postgres, Airflow, Superset
+├── Dockerfile.superset         # Custom Superset image with psycopg2
+├── .gitignore
+└── README.md
 
