@@ -10,3 +10,4 @@ __pycache__/
 
 # Databases & local data
 *.csv
+.idea/
