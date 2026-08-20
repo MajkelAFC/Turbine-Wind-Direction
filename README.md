@@ -1,44 +1,100 @@
+# 🌬️ Turbine Wind Direction Analytics Pipeline
 
-# Turbine Wind Direction Analytics Pipeline
-
-A production-ready data pipeline engineered in Python using **Domain-Driven Design (DDD)** principles and the **Medallion Architecture** (Bronze, Silver, and Gold layers). The system ingests, cleans, and processes high-frequency wind turbine data to compute the mathematically precise average wind direction using circular/vector analytics.
-
-## 🚀 Architectural Overview
-
-The project is structured according to **Domain-Driven Design (DDD)** to separate core business logic from technical infrastructure frameworks:
-
-*   **Domain Layer (`src/domain/`)**: Pure business logic containing Domain Services (`WindAnalyticsService`) and Domain Models (`WindRecord`). It has zero external dependencies.
-*   **Infrastructure Layer (`src/infrastructure/`)**: Technical implementations including database access layers (`PostgresWindTurbineRepository`) and ETL data loaders for each Medallion layer.
-
-### 🥉🥈🥇 The Medallion Pipeline
-
-1.  **Bronze Layer**: Ingests raw wind metrics straight from the input file and safely pipes them into the relational database raw table (`wind_data_bronze`).
-2.  **Silver Layer**: Cleanses data by filtering out anomalies, noise, and system drops, persisting the refined metrics into `wind_data_silver`.
-3.  **Gold Layer**: Fetches cleaned data, passes it through our domain circular vector math engine, and saves the final aggregate KPI along with a computation timestamp into `wind_data_gold`.
+A data pipeline that takes raw wind sensor readings and turns them into a practical recommendation: which way should wind turbines face? Built using Domain-Driven Design and the Medallion Architecture, and fully automated with Apache Airflow.
 
 ---
 
-## 🧮 Mathematical Engine: Circular Mean
+## 🎯 Problem
+*(Business Analyst perspective)*
 
-Standard arithmetic averaging fails for directional coordinates (e.g., the average of $350^\circ$ and $10^\circ$ should be $0^\circ$ or $360^\circ$, not $180^\circ$). 
+Imagine you want to know the "average" wind direction at a wind farm. Sounds simple — just average the numbers, right? Actually, no.
 
-To solve this, the **`WindAnalyticsService`** converts degrees into unit vectors on a Cartesian plane using sine and cosine, computes their component means, and maps the resulting vector back to a $0^\circ$ - $360^\circ$ angular space using the $atan2$ function:
+Wind direction is measured in degrees (0°–360°, like a compass). The problem: if the wind blows at 350° half the time and 10° the other half, a normal average gives you 180° — which is the *opposite* direction of the real answer (which should be close to 0°/360°, north). Regular averaging breaks on compass-style data.
 
-$$x_{mean} = \frac{1}{n} \sum_{i=1}^{n} \cos(\theta_i)$$
+**What this project solves:** calculating the *correct* average wind direction automatically, using the right math for angles — not the math you'd use for regular numbers.
 
-$$y_{mean} = \frac{1}{n} \sum_{i=1}^{n} \sin(\theta_i)$$
+## 🏢 Business Context
+*(Business Analyst perspective)*
 
-$$\theta_{mean} = \text{atan2}(y_{mean}, x_{mean})$$
+Why does this matter? Wind farm engineers use the average wind direction to make two real decisions:
 
-## 🐳 Orchestration & Infrastructure
+- **Which way turbines should point by default**, so they don't waste energy constantly rotating to catch the wind.
+- **Where to physically place turbines** on the site, so one turbine doesn't block the wind from reaching another one behind it.
 
-The entire stack runs in Docker containers, orchestrated via Docker Compose:
+If the average direction is calculated wrong, both of these decisions end up wrong too — costing the wind farm real money in lost efficiency and unnecessary wear on equipment.
 
-- **PostgreSQL**: stores Bronze, Silver, and Gold layer data
-- **Apache Airflow**: schedules and orchestrates the ETL pipeline (`bronze → silver → gold`), running daily via a DAG defined in `dags/wind_dag.py`
-- **Apache Superset**: connects to the Gold/Silver layers to visualize wind direction distribution
+## 🧠 Proposed Solution & Architecture
+*(Architect perspective)*
 
-This means anyone can spin up the full pipeline — database, scheduler, and dashboards — with a single command, without installing anything locally.
+The data flows through three simple stages, known as the **Medallion Architecture**:
+
+| Layer | What happens here |
+|---|---|
+| 🥉 Bronze | Raw sensor readings are saved exactly as they come in |
+| 🥈 Silver | Bad or impossible readings (outside 0°–360°) are filtered out |
+| 🥇 Gold | The correct average direction is calculated and saved |
+
+The code is also organized so the "business logic" (the math and rules) is kept completely separate from the "technical plumbing" (database, files):
+
+- **`src/domain/`** — the actual logic: what counts as a valid reading, and how to calculate the average correctly. This part doesn't know or care that a database exists.
+- **`src/infrastructure/`** — the technical side: talking to PostgreSQL, reading CSV files, moving data between layers.
+
+Why split it this way? Because the math (the part that really matters) can be checked and understood on its own, without needing to know anything about databases or Docker.
+
+## 🧮 How the Average is Calculated
+*(Architect perspective)*
+
+Instead of just averaging the degree numbers directly, the pipeline treats each wind direction as an arrow pointing in that direction. It averages the arrows (not the numbers), and then converts the result back into a compass direction.
+
+In plain terms: this is the one decision in the whole project that actually matters most — get this wrong, and every result downstream is wrong too, even though the code would still "work" without any errors.
+
+## 📊 Visualizations
+*(Data Analyst perspective)*
+
+Here's what 352 individual wind readings look like, plotted in Apache Superset:
+
+![Wind Direction Dashboard](docs/dashboard.png)
+
+Most readings cluster tightly around 179–180°, forming a bell-shaped curve. This is a good sign — it visually confirms that the calculated average (also around 180°) makes sense given the raw data, rather than being thrown off by a calculation mistake.
+
+## 🔍 Decisions & Rationale
+*(Architect + Data Analyst perspective)*
+
+| What we chose | Why |
+|---|---|
+| Special "compass-style" averaging instead of normal averaging | Normal averaging gives a wrong, sometimes opposite, answer for directional data |
+| Apache Airflow instead of just running a script | In a real company, nobody manually re-runs a script every day — Airflow runs it automatically and tells you if something breaks |
+| Docker Compose for everything | Anyone can start the entire project — database, automation, dashboard — with a single command, no manual setup |
+| A real dashboard (Superset) instead of a saved image | A dashboard can be viewed live in a browser by anyone, anytime, rather than looking at a static picture someone made once |
+| Keeping the math separate from the database code | Makes it possible to check the math is correct without needing a database at all |
+
+## 🛠️ Tech Stack
+
+- **Language:** Python 3.10
+- **Approach:** Domain-Driven Design (DDD)
+- **Database:** PostgreSQL 16
+- **Automation:** Apache Airflow (runs the pipeline: `wind_analytics_pipeline`)
+- **Dashboard:** Apache Superset
+- **Runs everywhere via:** Docker & Docker Compose
+
+## 📚 Sources
+
+- The "compass-style" averaging method is a standard approach for direction data — [Wikipedia: Circular mean](https://en.wikipedia.org/wiki/Circular_mean)
+- Sample wind turbine sensor data: Kaggle
+
+## 📈 Result
+*(Problem Solver / Product Owner perspective)*
+
+The pipeline calculates a correct average wind direction of **179.99°** — essentially due south — fully automatically, from raw data to final result.
+
+**What this means in practice:**
+
+1. **Turbines should default to facing 179.99°.** This reduces how much they need to rotate throughout the year, which means less mechanical wear.
+2. **Turbines should be arranged in rows running East–West.** Since the wind consistently comes from the North-South direction, this layout stops turbines from blocking wind from reaching each other.
+
+In short: this isn't just "a number was calculated" — it's a concrete recommendation an engineer could actually use.
+
+---
 
 ## ▶️ How to Run
 
@@ -46,12 +102,12 @@ This means anyone can spin up the full pipeline — database, scheduler, and das
 docker compose up -d --build
 ```
 
-This starts:
-- PostgreSQL on port `5433`
-- Airflow UI on `http://localhost:8080`
-- Superset UI on `http://localhost:8088`
+This starts everything you need:
+- PostgreSQL (database) on port `5433`
+- Airflow (automation) at `http://localhost:8080`
+- Superset (dashboard) at `http://localhost:8088`
 
-On first run, initialize Airflow and Superset users:
+The first time you run it, set up the Airflow and Superset logins:
 
 ```bash
 docker exec -it wind_airflow airflow users list   # check default admin (standalone mode)
@@ -61,55 +117,30 @@ docker exec -it wind_superset superset fab create-admin --username admin --first
 docker exec -it wind_superset superset init
 ```
 
-Then trigger the DAG from the Airflow UI (`wind_analytics_pipeline`) to run the full Bronze → Silver → Gold pipeline.
-
-## 📊 Dashboard
-
-Wind direction distribution, visualized in Superset from the Silver layer (352 individual readings):
-
-![Wind Direction Dashboard](docs/dashboard.png)
-
-The near-normal distribution centered around 179-180° confirms the circular mean calculation in the Gold layer.
-
----
-
----
-
-## 📈 Executive Summary & Engineering Insights
-
-Based on the final analytical calculation from the **Gold Layer**, the precise circular mean wind direction for this specific geographic location is **$179.99^\circ$** (practically a perfect due South heading). 
-
-To maximize the efficiency and energy yield of the wind farm infrastructure, engineers should apply the following data-driven optimizations:
-
-### 1. Optimal Baseline Turbine Orientation (Yaw System Optimization)
-*   **Target Heading**: **$179.99^\circ$** (South).
-*   **Impact**: While modern wind turbines feature active yaw systems to automatically rotate the nacelle into the wind, setting the default baseline orientation to **$179.99^\circ$** minimizes the aggregate mechanical rotation required throughout the year. This directly reduces component wear on yaw bearings and saves auxiliary energy consumption.
-
-### 2. Wake Mitigation & Spatial Layout Design
-*   **Array Layout Axis**: **$89.99^\circ \longleftrightarrow 269.99^\circ$** (East-West alignment).
-*   **Impact**: Because the prevailing wind vector is strictly locked on a North-South axis ($179.99^\circ$), turbines must be positioned in rows stretching from East to West. This optimal spacing layout ensures that upstream turbines do not block or create aerodynamic turbulence (wake effect) for downstream units, maximizing the kinetic energy capture across the entire fleet.
+Then go to the Airflow UI, find the `wind_analytics_pipeline` DAG, and trigger it to run the whole pipeline from start to finish.
 
 ## 🛠️ Project Structure
 
+```
 wind_analytics/
 ├── dags/
-│   └── wind_dag.py            # Airflow DAG orchestrating bronze/silver/gold
+│   └── wind_dag.py            # Tells Airflow what to run and in what order
 ├── docs/
-│   └── dashboard.png          # Superset dashboard screenshot
+│   └── dashboard.png          # Dashboard screenshot
 ├── src/
 │   ├── domain/
-│   │   ├── analytics.py
-│   │   ├── repository.py
-│   │   └── wind_turbine.py
+│   │   ├── analytics.py       # The averaging math
+│   │   ├── repository.py      # Defines what a "repository" must be able to do
+│   │   └── wind_turbine.py    # A single wind reading, with validation
 │   ├── infrastructure/
 │   │   ├── csv_loader.py
 │   │   ├── database.py
-│   │   ├── repository.py
+│   │   ├── repository.py      # Actual PostgreSQL implementation
 │   │   ├── silver_loader.py
 │   │   └── gold_loader.py
 │   └── main.py
-├── docker-compose.yml         # Full stack: Postgres, Airflow, Superset
-├── Dockerfile.superset         # Custom Superset image with psycopg2
+├── docker-compose.yml         # Defines the full stack: Postgres, Airflow, Superset
+├── Dockerfile.superset        # Custom Superset setup
 ├── .gitignore
 └── README.md
-
+```
