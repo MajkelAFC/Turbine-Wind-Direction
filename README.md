@@ -144,3 +144,13 @@ wind_analytics/
 ├── .gitignore
 └── README.md
 ```
+## 🧪 Tests
+
+The domain logic is covered by unit tests that run without a database or Docker:
+
+    pip install -r requirements.txt
+    python -m pytest tests/ -v
+
+The key test verifies the circular mean: for readings of 350° and 10°, a regular average would return 180° — the exact opposite direction. The pipeline returns 0°.
+
+Note that the sample dataset does not contain readings crossing 0°/360°, so the circular mean was chosen to keep the pipeline correct for data that does.
