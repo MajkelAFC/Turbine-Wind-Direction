@@ -51,7 +51,7 @@ In plain terms: this is the one decision in the whole project that actually matt
 ## 📊 Visualizations
 *(Data Analyst perspective)*
 
-Here's what 352 individual wind readings look like, plotted in Apache Superset:
+Here's what the 10,000 processed wind readings look like, plotted in Apache Superset:
 
 ![Wind Direction Dashboard](docs/dashboard.png)
 
@@ -139,8 +139,14 @@ wind_analytics/
 │   │   ├── silver_loader.py
 │   │   └── gold_loader.py
 │   └── main.py
+├── tests/
+│   ├── test_analytics.py      # Circular mean tests
+│   └── test_wind_record.py    # Validation tests
 ├── docker-compose.yml         # Defines the full stack: Postgres, Airflow, Superset
 ├── Dockerfile.superset        # Custom Superset setup
+├── init.sql                   # Creates bronze/silver/gold tables on first start
+├── requirements.txt
+├── wind_data.csv              # Sample dataset
 ├── .gitignore
 └── README.md
 ```
