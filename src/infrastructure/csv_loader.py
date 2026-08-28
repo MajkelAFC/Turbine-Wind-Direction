@@ -9,3 +9,10 @@ def load_csv_to_bronze(file_path: str, repo: WindTurbineRepository) -> None:
             record = WindRecord(row['WindDirAbs'])
             repo.save(record)
             print(f"Record saved: {record.winddirabs}")
+
+
+
+
+
+
+

@@ -10,8 +10,6 @@ class GoldWindAnalyticsLoader:
         # 1. Fetch clean directions from the Silver layer
         directions = self.repo.get_silver_directions()
 
-        print(f"DEBUG: Data fetched from Silver layer: {directions}")
-
         # 2. Calculate the average direction using the domain service
         avg_direction = WindAnalyticsService.calculate_average_direction(directions)
 
