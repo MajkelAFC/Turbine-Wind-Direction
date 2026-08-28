@@ -51,11 +51,11 @@ In plain terms: this is the one decision in the whole project that actually matt
 ## 📊 Visualizations
 *(Data Analyst perspective)*
 
-Here's what the 10,000 processed wind readings look like, plotted in Apache Superset:
+Here's the distribution of the processed wind readings, plotted in Apache Superset:
 
 ![Wind Direction Dashboard](docs/dashboard.png)
 
-Most readings cluster tightly around 179–180°, forming a bell-shaped curve. This is a good sign — it visually confirms that the calculated average (also around 180°) makes sense given the raw data, rather than being thrown off by a calculation mistake.
+The pipeline processes 10,000 raw readings. Most of them cluster tightly around 179–180°, forming a bell-shaped curve. This is a good sign — it visually confirms that the calculated average makes sense given the raw data, rather than being thrown off by a calculation mistake.
 
 ## 🔍 Decisions & Rationale
 *(Architect + Data Analyst perspective)*
@@ -67,6 +67,7 @@ Most readings cluster tightly around 179–180°, forming a bell-shaped curve. T
 | Docker Compose for everything | Anyone can start the entire project — database, automation, dashboard — with a single command, no manual setup |
 | A real dashboard (Superset) instead of a saved image | A dashboard can be viewed live in a browser by anyone, anytime, rather than looking at a static picture someone made once |
 | Keeping the math separate from the database code | Makes it possible to check the math is correct without needing a database at all |
+| Database schema created on first start (`init.sql`) | The project works straight after cloning, with no manual table creation |
 
 ## 🛠️ Tech Stack
 
@@ -75,7 +76,19 @@ Most readings cluster tightly around 179–180°, forming a bell-shaped curve. T
 - **Database:** PostgreSQL 16
 - **Automation:** Apache Airflow (runs the pipeline: `wind_analytics_pipeline`)
 - **Dashboard:** Apache Superset
+- **Testing:** pytest
 - **Runs everywhere via:** Docker & Docker Compose
+
+## 🧪 Tests
+
+The domain logic is covered by unit tests that run without a database or Docker:
+
+    pip install -r requirements.txt
+    python -m pytest tests/ -v
+
+The key test verifies the circular mean: for readings of 350° and 10°, a regular average would return 180° — the exact opposite direction. The pipeline returns 0°.
+
+Note that the sample dataset does not contain readings crossing 0°/360°, so the circular mean was chosen to keep the pipeline correct for data that does.
 
 ## 📚 Sources
 
@@ -110,7 +123,7 @@ This starts everything you need:
 The first time you run it, set up the Airflow and Superset logins:
 
 ```bash
-docker exec -it wind_airflow airflow users list   # check default admin (standalone mode)
+docker exec wind_airflow cat /opt/airflow/standalone_admin_password.txt
 
 docker exec -it wind_superset superset db upgrade
 docker exec -it wind_superset superset fab create-admin --username admin --firstname Admin --lastname User --email admin@admin.com --password admin
@@ -150,13 +163,4 @@ wind_analytics/
 ├── .gitignore
 └── README.md
 ```
-## 🧪 Tests
 
-The domain logic is covered by unit tests that run without a database or Docker:
-
-    pip install -r requirements.txt
-    python -m pytest tests/ -v
-
-The key test verifies the circular mean: for readings of 350° and 10°, a regular average would return 180° — the exact opposite direction. The pipeline returns 0°.
-
-Note that the sample dataset does not contain readings crossing 0°/360°, so the circular mean was chosen to keep the pipeline correct for data that does.
