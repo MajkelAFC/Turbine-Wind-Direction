@@ -11,6 +11,8 @@ __pycache__/
 # Databases & local data
 *.csv
 !wind_data.csv
+!wind_data_dirty.csv
+
 
 # Environment variables
 .env

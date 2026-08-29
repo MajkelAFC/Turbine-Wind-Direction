@@ -1,6 +1,6 @@
 CREATE TABLE IF NOT EXISTS wind_data_bronze (
     id SERIAL PRIMARY KEY,
-    winddirabs NUMERIC
+    winddirabs VARCHAR(50)
 );
 
 CREATE TABLE IF NOT EXISTS wind_data_silver (

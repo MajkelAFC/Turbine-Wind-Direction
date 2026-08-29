@@ -36,12 +36,15 @@ services:
       POSTGRES_DB: ${POSTGRES_DB}
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      CSV_FILE: ${CSV_FILE:-wind_data.csv}
+      _AIRFLOW_WWW_USER_USERNAME: admin
+      _AIRFLOW_WWW_USER_PASSWORD: admin
     ports:
       - "8080:8080"
     volumes:
       - ./dags:/opt/airflow/dags
       - ./src:/opt/airflow/dags/src
-      - ./wind_data.csv:/opt/airflow/dags/wind_data.csv
+      - ./data:/opt/airflow/data
     command: standalone
 
   superset:

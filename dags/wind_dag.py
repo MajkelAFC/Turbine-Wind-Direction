@@ -1,3 +1,5 @@
+import os
+
 from airflow import DAG
 from airflow.operators.python import PythonOperator
 from datetime import datetime
@@ -13,7 +15,8 @@ def run_bronze():
     conn = get_connection()
     repo = PostgresWindTurbineRepository(conn)
     repo.truncate("wind_data_bronze")
-    load_csv_to_bronze("/opt/airflow/dags/wind_data.csv",repo)
+    csv_name = os.environ.get("CSV_FILE", "wind_data.csv")
+    load_csv_to_bronze(f"/opt/airflow/data/{csv_name}", repo)
     conn.close()
 
 
@@ -39,6 +42,7 @@ with DAG(
     start_date=datetime(2026, 1, 1),
     schedule="@daily",
     catchup=False,
+    max_active_runs=1,
 ) as dag:
 
     bronze_task = PythonOperator(task_id="bronze", python_callable=run_bronze)

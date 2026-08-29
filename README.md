@@ -60,15 +60,18 @@ The pipeline processes 10,000 raw readings. Most of them cluster tightly around 
 ## 🔍 Decisions & Rationale
 *(Architect + Data Analyst perspective)*
 
-| What we chose | Why |
-|---|---|
-| Special "compass-style" averaging instead of normal averaging | Normal averaging gives a wrong, sometimes opposite, answer for directional data |
-| Apache Airflow instead of just running a script | In a real company, nobody manually re-runs a script every day — Airflow runs it automatically and tells you if something breaks |
-| Docker Compose for everything | Anyone can start the entire project — database, automation, dashboard — with a single command, no manual setup |
-| A real dashboard (Superset) instead of a saved image | A dashboard can be viewed live in a browser by anyone, anytime, rather than looking at a static picture someone made once |
-| Keeping the math separate from the database code | Makes it possible to check the math is correct without needing a database at all |
-| Database schema created on first start (`init.sql`) | The project works straight after cloning, with no manual table creation |
-| Tables truncated at the start of each layer | Running the pipeline twice produces the same result instead of duplicating data |
+What we chose	Why
+Special "compass-style" averaging instead of normal averaging	Normal averaging gives a wrong, sometimes opposite, answer for directional data
+Apache Airflow instead of just running a script	In a real company, nobody manually re-runs a script every day — Airflow runs it automatically and tells you if something breaks
+Docker Compose for everything	Anyone can start the entire project — database, automation, dashboard — with a single command, no manual setup
+A real dashboard (Superset) instead of a saved image	A dashboard can be viewed live in a browser by anyone, anytime, rather than looking at a static picture someone made once
+Keeping the math separate from the database code	Makes it possible to check the math is correct without needing a database at all
+Database schema created on first start (init.sql)	The project works straight after cloning, with no manual table creation
+Tables truncated at the start of each layer	Running the pipeline twice produces the same result instead of duplicating data
+Bronze stores readings as text, not numbers	The raw layer must accept whatever the sensor sends, including broken values — validation belongs in Silver
+Silver logs accepted and rejected counts	Makes data quality visible; a pipeline that silently drops rows hides problems
+max_active_runs=1 on the DAG	Prevents two runs from overwriting each other's data mid-pipeline
+Credentials in .env, not in docker-compose.yml	Passwords and secret keys stay out of the repository
 
 ## 🛠️ Tech Stack
 
@@ -90,6 +93,24 @@ The domain logic is covered by unit tests that run without a database or Docker:
 The key test verifies the circular mean: for readings of 350° and 10°, a regular average would return 180° — the exact opposite direction. The pipeline returns 0°.
 
 Note that the sample dataset does not contain readings crossing 0°/360°, so the circular mean was chosen to keep the pipeline correct for data that does.
+
+🧹 Data Validation in Practice
+
+The Silver layer logs how many readings it accepted and rejected, so a drop in data quality is visible instead of silent:
+
+Silver layer: 10000 readings processed, 10000 accepted, 0 rejected
+
+The sample dataset is clean, so nothing gets rejected. To see the validation actually working, the repository includes data/wind_data_dirty.csv — the same dataset with five deliberately broken readings appended (negative values, values above 360°, and a non-numeric entry). These rows are marked synthetic_invalid_* in the Scenario column; they are not part of the original dataset.
+
+Switch the input file in .env:
+
+CSV_FILE=wind_data_dirty.csv
+
+Then re-run the pipeline. The Silver layer now reports:
+
+Silver layer: 10005 readings processed, 10000 accepted, 5 rejected
+
+The final average stays at 179.99° — the broken readings never reach the calculation.
 
 ## 📚 Sources
 
@@ -139,6 +160,9 @@ Then go to the Airflow UI, find the `wind_analytics_pipeline` DAG, and trigger i
 wind_analytics/
 ├── dags/
 │   └── wind_dag.py            # Tells Airflow what to run and in what order
+├── data/
+│   ├── wind_data.csv          # Sample dataset
+│   └── wind_data_dirty.csv    # Same data with 5 invalid rows, for testing validation
 ├── docs/
 │   └── dashboard.png          # Dashboard screenshot
 ├── src/
@@ -159,8 +183,8 @@ wind_analytics/
 ├── docker-compose.yml         # Defines the full stack: Postgres, Airflow, Superset
 ├── Dockerfile.superset        # Custom Superset setup
 ├── init.sql                   # Creates bronze/silver/gold tables on first start
+├── .env.example               # Template for local credentials
 ├── requirements.txt
-├── wind_data.csv              # Sample dataset
 ├── .gitignore
 └── README.md
 ```
