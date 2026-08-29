@@ -68,6 +68,7 @@ The pipeline processes 10,000 raw readings. Most of them cluster tightly around 
 | A real dashboard (Superset) instead of a saved image | A dashboard can be viewed live in a browser by anyone, anytime, rather than looking at a static picture someone made once |
 | Keeping the math separate from the database code | Makes it possible to check the math is correct without needing a database at all |
 | Database schema created on first start (`init.sql`) | The project works straight after cloning, with no manual table creation |
+| Tables truncated at the start of each layer | Running the pipeline twice produces the same result instead of duplicating data |
 
 ## 🛠️ Tech Stack
 
