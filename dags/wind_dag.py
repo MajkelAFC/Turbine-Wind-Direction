@@ -12,6 +12,7 @@ from src.infrastructure.gold_loader import GoldWindAnalyticsLoader
 def run_bronze():
     conn = get_connection()
     repo = PostgresWindTurbineRepository(conn)
+    repo.truncate("wind_data_bronze")
     load_csv_to_bronze("/opt/airflow/dags/wind_data.csv",repo)
     conn.close()
 
@@ -19,6 +20,7 @@ def run_bronze():
 def run_silver():
     conn = get_connection()
     repo = PostgresWindTurbineRepository(conn)
+    repo.truncate("wind_data_silver")
     process_bronze_to_silver(conn,repo)
     conn.close()
 
@@ -26,6 +28,7 @@ def run_silver():
 def run_gold():
     conn = get_connection()
     repo = PostgresWindTurbineRepository(conn)
+    repo.truncate("wind_data_gold")
     gold = GoldWindAnalyticsLoader(repo)
     gold.load_gold_data()
     conn.close()

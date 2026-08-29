@@ -7,6 +7,11 @@ class PostgresWindTurbineRepository(WindTurbineRepository):
     def __init__(self, conn):
         self.conn = conn
 
+    def truncate(self, table: str) -> None:
+        with self.conn.cursor() as cursor:
+            cursor.execute(f"TRUNCATE TABLE {table};")
+        self.conn.commit()
+
     def save (self, record: WindRecord) -> None:
         with self.conn.cursor() as cursor:
             cursor.execute("INSERT INTO wind_data_bronze (winddirabs) VALUES (%s);", (record.winddirabs,))
